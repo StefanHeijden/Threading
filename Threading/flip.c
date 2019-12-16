@@ -64,7 +64,6 @@ static void *
 flipAllBits(void * arg){
 	int *   argi; 
     int     piece;      
-    int *   rtnval;
     
     argi = (int *) arg;     // proper casting before dereferencing (could also be done in one statement)
     piece = *argi;          // get the integer value of the pointer
@@ -89,37 +88,32 @@ flipAllBits(void * arg){
 		pointer = pointer + 1;
 		currentPosition = pointer * piece;
 	}
-	
-	// a return value to be given back to the calling main-thread
-    rtnval = malloc (sizeof (int)); // will be freed by the parent-thread
-    *rtnval = 42;           // assign an arbitrary value...
-    return (rtnval);        // you can also use pthread_exit(rtnval);
+    return (NULL);        // you can also use pthread_exit(rtnval);
 }
 
 
 // Create thread for current piece --> thread_test()
 void createThread(int piece){
 	int *       parameter;
-    int *       rtnval;
     
     // parameter to be handed over to the thread
     parameter = malloc (sizeof (int));  // memory will be freed by the child-thread
     *parameter = piece;        // assign value of current piece
     
 	// Create thread for current piece and try flip all bits
-	printf ("%lx: starting thread ...\n", pthread_self());
+	printf ("%lx: starting thread %d\n", pthread_self(), lastThread);
+	
 	// Increase number of current Threads
 	currentNoOfThreads = currentNoOfThreads + 1;
     pthread_create (&my_threads[lastThread], NULL, flipAllBits, parameter);
-    
-	// wait for the thread, and we are interested in the return value
-    pthread_join (my_threads[lastThread], (void **) &rtnval);  
-    printf ("%lx: thread ready; return value=%d\n", pthread_self(), *rtnval);
-    
-    // free the memory thas has been allocated by the thread 
-    free (rtnval);
-    printf ("\n");
-    
+}
+
+
+// Wait for threads
+void waitForThread(){
+	pthread_join (my_threads[lastThread], NULL);  
+	printf ("%lx: thread %d is ready\n", 
+				pthread_self(), lastThread);
 	// Lower number of current Threads
 	currentNoOfThreads = currentNoOfThreads - 1;
 }
@@ -140,13 +134,15 @@ int main (void)
 			createThread(currentPiece);
 			currentPiece = currentPiece + 1;
 		}else{
-			// Wait for a thread then
-			// To do wait for thread
-			currentNoOfThreads = currentNoOfThreads + 1;
+			// Wait for the thread,
+			waitForThread();
+			// Create thread for current piece
+			lastThread = currentNoOfThreads;
 			createThread(currentPiece);
 			currentPiece = currentPiece + 1;
 		}
 	}
+	waitForThread();
 	// Output the results
 	printOutput();
     return (0);
