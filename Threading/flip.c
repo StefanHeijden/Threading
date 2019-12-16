@@ -22,9 +22,11 @@
 #include "flip.h"
 
 int currentNoOfThreads = 0;
+pthread_t my_threads[NROF_THREADS];
 
 
 // Print for each bit whether it is flipped or not
+// Used for testing
 void printBits(){
 	for(int i = 1; i <= NROF_PIECES; i = i + 1) {
 		if (BIT_IS_SET (buffer[(i/128) + 1], i)) {
@@ -36,19 +38,51 @@ void printBits(){
 }
 
 
+// Print all integers whose bit is set to 1
+void printOutput(){
+	for(int i = 1; i <= NROF_PIECES; i = i + 1) {
+		if (BIT_IS_SET (buffer[(i/128) + 1], i)) {
+			printf("%d\n",i); 
+		}
+	}
+}
+
+
+// Thread TO DO <----------------------------------
+static void * 
+my_thread (void * arg) {
+    int *   argi; 
+    int     i;      
+    int *   rtnval;
+    
+    argi = (int *) arg;     // proper casting before dereferencing (could also be done in one statement)
+    i = *argi;              // get the integer value of the pointer
+    free (arg);             // we retrieved the integer value, so now the pointer can be deleted
+    
+    printf ("        %lx: thread started; parameter=%d\n", pthread_self(), i);
+    
+    sleep (1);
+    
+    // a return value to be given back to the calling main-thread
+    rtnval = malloc (sizeof (int)); // will be freed by the parent-thread
+    *rtnval = 42;           // assign an arbitrary value...
+    return (rtnval);        // you can also use pthread_exit(rtnval);
+}
+
+
 // Create thread for current piece --> thread_test()
 void createThread(int piece){
-	printf ("Created thread for %d\n", piece);
+	//printf ("Created thread for %d\n", piece);
 	// Create thread for current piece
 	// TO DO <-----
 	// Then try flip all bits
 	flipAllBits(piece);
-	printBits(); // TEST <-----
+	//printBits(); // TEST <-----
 	// Close thread
 	// TO DO <-----
 	// Lower number of current Threads
 	currentNoOfThreads = currentNoOfThreads - 1;
-	printf ("Closed thread for %d\n", piece);
+	//printf ("Closed thread for %d\n", piece);
 }
 
 
@@ -91,7 +125,7 @@ void flipBit(int currentPosition){
 int main (void)
 {
 	// Output the start
-	printBits();
+	//printBits();
 	int currentPiece = 1;
 	// Create thread for each piece
 	while(currentPiece <= NROF_PIECES){
@@ -102,11 +136,15 @@ int main (void)
 			createThread(currentPiece);
 			currentPiece = currentPiece + 1;
 		}else{
-			break;
+			// Wait for a thread then
+			// To do wait for thread
+			currentNoOfThreads = currentNoOfThreads + 1;
+			createThread(currentPiece);
+			currentPiece = currentPiece + 1;
 		}
 	}
 	// Output the results
-	printBits();
+	printOutput();
     return (0);
 }
 
