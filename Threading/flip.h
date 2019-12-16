@@ -14,7 +14,7 @@
 /**
  * NROF_PIECES: size of the board; number of pieces to be flipped
  */
-#define NROF_PIECES			400
+#define NROF_PIECES			4
 
 /**
  * NROF_THREADS: number of threads that can be run in parallel

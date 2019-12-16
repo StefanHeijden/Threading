@@ -22,6 +22,7 @@
 #include "flip.h"
 
 int currentNoOfThreads = 0;
+int lastThread = 0;
 pthread_t my_threads[NROF_THREADS];
 
 
@@ -48,46 +49,28 @@ void printOutput(){
 }
 
 
-// Thread TO DO <----------------------------------
-static void * 
-my_thread (void * arg) {
-    int *   argi; 
-    int     i;      
-    int *   rtnval;
-    
-    argi = (int *) arg;     // proper casting before dereferencing (could also be done in one statement)
-    i = *argi;              // get the integer value of the pointer
-    free (arg);             // we retrieved the integer value, so now the pointer can be deleted
-    
-    printf ("        %lx: thread started; parameter=%d\n", pthread_self(), i);
-    
-    sleep (1);
-    
-    // a return value to be given back to the calling main-thread
-    rtnval = malloc (sizeof (int)); // will be freed by the parent-thread
-    *rtnval = 42;           // assign an arbitrary value...
-    return (rtnval);        // you can also use pthread_exit(rtnval);
-}
-
-
-// Create thread for current piece --> thread_test()
-void createThread(int piece){
-	//printf ("Created thread for %d\n", piece);
-	// Create thread for current piece
-	// TO DO <-----
-	// Then try flip all bits
-	flipAllBits(piece);
-	//printBits(); // TEST <-----
-	// Close thread
-	// TO DO <-----
-	// Lower number of current Threads
-	currentNoOfThreads = currentNoOfThreads - 1;
-	//printf ("Closed thread for %d\n", piece);
+// Flip bit of given piece --> bit_test()
+void flipBit(int currentPosition){
+	if(BIT_IS_SET(buffer[(currentPosition/128) + 1], currentPosition % 128)){
+		BIT_CLEAR(buffer[(currentPosition/128) + 1], currentPosition % 128);
+	}else{
+		BIT_SET(buffer[(currentPosition/128) + 1], currentPosition % 128);
+	}
 }
 
 
 // Flip all bits for ceratin multiplier --> thread_mutex_test()
-void flipAllBits(int piece){
+static void * 
+flipAllBits(void * arg){
+	int *   argi; 
+    int     piece;      
+    int *   rtnval;
+    
+    argi = (int *) arg;     // proper casting before dereferencing (could also be done in one statement)
+    piece = *argi;          // get the integer value of the pointer
+    free (arg);             // we retrieved the integer value, so now the pointer can be deleted
+    
+    
 	int pointer = 1;
 	int currentPosition = piece;
 	// For element in the list that has not been flipped:
@@ -106,22 +89,43 @@ void flipAllBits(int piece){
 		pointer = pointer + 1;
 		currentPosition = pointer * piece;
 	}
+	
+	// a return value to be given back to the calling main-thread
+    rtnval = malloc (sizeof (int)); // will be freed by the parent-thread
+    *rtnval = 42;           // assign an arbitrary value...
+    return (rtnval);        // you can also use pthread_exit(rtnval);
 }
 
 
-// Flip bit of given piece --> bit_test()
-void flipBit(int currentPosition){
-	if(BIT_IS_SET(buffer[(currentPosition/128) + 1], currentPosition % 128)){
-		BIT_CLEAR(buffer[(currentPosition/128) + 1], currentPosition % 128);
-	}else{
-		BIT_SET(buffer[(currentPosition/128) + 1], currentPosition % 128);
-	}
+// Create thread for current piece --> thread_test()
+void createThread(int piece){
+	int *       parameter;
+    int *       rtnval;
+    
+    // parameter to be handed over to the thread
+    parameter = malloc (sizeof (int));  // memory will be freed by the child-thread
+    *parameter = piece;        // assign value of current piece
+    
+	// Create thread for current piece and try flip all bits
+	printf ("%lx: starting thread ...\n", pthread_self());
+	// Increase number of current Threads
+	currentNoOfThreads = currentNoOfThreads + 1;
+    pthread_create (&my_threads[lastThread], NULL, flipAllBits, parameter);
+    
+	// wait for the thread, and we are interested in the return value
+    pthread_join (my_threads[lastThread], (void **) &rtnval);  
+    printf ("%lx: thread ready; return value=%d\n", pthread_self(), *rtnval);
+    
+    // free the memory thas has been allocated by the thread 
+    free (rtnval);
+    printf ("\n");
+    
+	// Lower number of current Threads
+	currentNoOfThreads = currentNoOfThreads - 1;
 }
 
 
-// TODO: start threads to flip the pieces and output the results
-// (see thread_test() and thread_mutex_test() how to use threads and mutexes,
-//  see bit_test() how to manipulate bits in a large integer)
+// Main thread
 int main (void)
 {
 	// Output the start
@@ -132,7 +136,7 @@ int main (void)
 		// Create thread for current piece
 		// but only if there are more threads available
 		if(currentNoOfThreads < NROF_THREADS) {
-			currentNoOfThreads = currentNoOfThreads + 1;
+			lastThread = currentNoOfThreads;
 			createThread(currentPiece);
 			currentPiece = currentPiece + 1;
 		}else{
