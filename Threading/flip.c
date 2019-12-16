@@ -17,13 +17,16 @@
 #include <stdbool.h>
 #include <errno.h>          // for perror()
 #include <pthread.h>
+#include <unistd.h>
 
 #include "uint128.h"
 #include "flip.h"
 
 int currentNoOfThreads = 0;
 int lastThread = 0;
+int threadToWaitFor = 0;
 pthread_t my_threads[NROF_THREADS];
+static pthread_mutex_t      mutex          = PTHREAD_MUTEX_INITIALIZER;
 
 
 // Print for each bit whether it is flipped or not
@@ -42,7 +45,7 @@ void printBits(){
 // Print all integers whose bit is set to 1
 void printOutput(){
 	for(int i = 1; i <= NROF_PIECES; i = i + 1) {
-		if (BIT_IS_SET (buffer[(i/128) + 1], i)) {
+		if (!BIT_IS_SET (buffer[(i/128) + 1], i)) {
 			printf("%d\n",i); 
 		}
 	}
@@ -75,16 +78,13 @@ flipAllBits(void * arg){
 	// For element in the list that has not been flipped:
 	while(currentPosition <= NROF_PIECES){
 		// Check mutexlock for piece
-		// TO DO <-----
-		// If free, lock it
-		// TO DO <-----
+		printf ("Flipbit: %d, %i\n", piece, currentPosition);
+		// pthread_mutex_lock (&mutex);
 		// then flip bit --> flitbit(piece)
 		flipBit(currentPosition);
 		// Then free lock
-		// TO DO <-----
-		// Then remove element from list
-		// TO DO <-----
-		// If not then go to next element in the list
+		// pthread_mutex_unlock (&mutex);
+		// Then go to the next one
 		pointer = pointer + 1;
 		currentPosition = pointer * piece;
 	}
@@ -109,41 +109,57 @@ void createThread(int piece){
 }
 
 
-// Wait for threads
+// Wait for a thread
 void waitForThread(){
-	pthread_join (my_threads[lastThread], NULL);  
+	// Join the next thread
+	pthread_join (my_threads[threadToWaitFor], NULL);  
 	printf ("%lx: thread %d is ready\n", 
-				pthread_self(), lastThread);
+				pthread_self(), threadToWaitFor);
 	// Lower number of current Threads
 	currentNoOfThreads = currentNoOfThreads - 1;
+	
+	// Obtain next thread to wait for
+	threadToWaitFor = threadToWaitFor + 1;
+	if(threadToWaitFor >= NROF_THREADS || 
+				threadToWaitFor > currentNoOfThreads) {
+		threadToWaitFor = 0;
+	}
+}
+
+
+// Wait for all threads to terminate
+void waitForAllThread(){
+	for(int i = 0; i < currentNoOfThreads; i = i + 1){
+		pthread_join (my_threads[i], NULL);  
+	}
 }
 
 
 // Main thread
 int main (void)
 {
-	// Output the start
-	//printBits();
-	int currentPiece = 1;
-	// Create thread for each piece
-	while(currentPiece <= NROF_PIECES){
-		// Create thread for current piece
-		// but only if there are more threads available
-		if(currentNoOfThreads < NROF_THREADS) {
-			lastThread = currentNoOfThreads;
-			createThread(currentPiece);
-			currentPiece = currentPiece + 1;
-		}else{
-			// Wait for the thread,
-			waitForThread();
-			// Create thread for current piece
-			lastThread = currentNoOfThreads;
-			createThread(currentPiece);
-			currentPiece = currentPiece + 1;
-		}
+	printf ("Start\n");
+	int currentPiece = 2;
+	// Create threads for all pieces < NROF_PIECES < NROF_THREADS
+	while(currentPiece <= NROF_PIECES && currentNoOfThreads < NROF_THREADS){
+		lastThread = currentNoOfThreads;
+		createThread(currentPiece);
+		currentPiece = currentPiece + 1;
 	}
-	waitForThread();
+	// Create thread for each remaining piece, each time a thread is 
+	// released
+	while(currentPiece <= NROF_PIECES){
+		// Wait for a thread to terminate and get its ID
+		lastThread = threadToWaitFor;
+		waitForThread();
+		// Then create a single thread for next piece
+		createThread(currentPiece);
+		currentPiece = currentPiece + 1;
+	}
+	waitForAllThread();
 	// Output the results
+	printf ("Done\n");
+	sleep(1);
 	printOutput();
     return (0);
 }
