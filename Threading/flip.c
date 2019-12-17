@@ -26,7 +26,7 @@ int currentNoOfThreads = 0;
 int lastThread = 0;
 int threadToWaitFor = 0;
 pthread_t my_threads[NROF_THREADS];
-static pthread_mutex_t      mutex          = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lock;
 
 
 // Print for each bit whether it is flipped or not
@@ -79,11 +79,11 @@ flipAllBits(void * arg){
 	while(currentPosition <= NROF_PIECES){
 		// Check mutexlock for piece
 		printf ("Flipbit: %d, %i\n", piece, currentPosition);
-		// pthread_mutex_lock (&mutex);
+		pthread_mutex_lock(&lock);
 		// then flip bit --> flitbit(piece)
 		flipBit(currentPosition);
 		// Then free lock
-		// pthread_mutex_unlock (&mutex);
+		pthread_mutex_unlock(&lock);
 		// Then go to the next one
 		pointer = pointer + 1;
 		currentPosition = pointer * piece;
@@ -138,6 +138,10 @@ void waitForAllThread(){
 // Main thread
 int main (void)
 {
+	if (pthread_mutex_init(&lock, NULL) != 0) { 
+        printf("\n mutex init has failed\n"); 
+        return 1;
+    } 
 	printf ("Start\n");
 	int currentPiece = 2;
 	// Create threads for all pieces < NROF_PIECES < NROF_THREADS
@@ -157,6 +161,7 @@ int main (void)
 		currentPiece = currentPiece + 1;
 	}
 	waitForAllThread();
+	pthread_mutex_destroy(&lock);
 	// Output the results
 	printf ("Done\n");
 	sleep(1);

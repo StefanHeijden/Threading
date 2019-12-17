@@ -14,13 +14,13 @@
 /**
  * NROF_PIECES: size of the board; number of pieces to be flipped
  */
-#define NROF_PIECES			30
+#define NROF_PIECES			300
 
 /**
  * NROF_THREADS: number of threads that can be run in parallel
  * (value must be between 1 and ... (until you run out of system resources))
  */
-#define NROF_THREADS		2
+#define NROF_THREADS		10
 
 // create a bitmask where bit at position n is set
 #define BITMASK(n)          (((uint128_t) 1) << (n))
